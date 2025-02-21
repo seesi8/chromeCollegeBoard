@@ -27,21 +27,29 @@ function attachDebugger(tabId) {
 
 async function fetchAPI(auth, tabId) {
   try {
-    
+    console.log({
+      url: auth["url"],
+      Authorization: auth["Authorization"],
+    });
     const response = await fetch(
-      "https://apc-api-production.collegeboard.org/fym/assessments/api/chameleon/student_assignments/1/?status=completed&subject=1",
+      "https://collegeboardbackend.vercel.app/fetch-api",
+
       {
-        method: "GET",
+        method: "POST",
         headers: {
-          Authorization: auth["Authorization"],
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          url: auth["url"],
+          Authorization: auth["Authorization"],
+        }),
       }
     );
 
+
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
-    const data = await response.json();
+    const data = (await response.json())["data"];
     const assignments = data["assignments"];
     chrome.scripting.executeScript({
       target: { tabId: tabId },
@@ -127,32 +135,36 @@ function updateAssignmentsOnPage(assignments) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "capture_success") {
-      console.log("✅ Screenshot captured and downloaded!");
+    console.log("✅ Screenshot captured and downloaded!");
 
-      // Get the active tab and execute the click simulation script
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs.length === 0) return;
+    // Get the active tab and execute the click simulation script
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length === 0) return;
 
-          chrome.scripting.executeScript({
-              target: { tabId: tabs[0].id },
-              func: simulateClickOnNextResponse
-          }).then((results) => {
-              const nextExists = results[0].result; // Result from the script
+      chrome.scripting
+        .executeScript({
+          target: { tabId: tabs[0].id },
+          func: simulateClickOnNextResponse,
+        })
+        .then((results) => {
+          const nextExists = results[0].result; // Result from the script
 
-              if (nextExists) {
-                  console.log("🔄 Waiting for new page to load...");
+          if (nextExists) {
+            console.log("🔄 Waiting for new page to load...");
 
-                  // Wait for the page to load before sending "capture" again
-                  setTimeout(() => {
-                      console.log("📸 Sending 'capture' message again...");
-                      chrome.tabs.sendMessage(tabs[0].id, { action: "capture" });
-                  }, 100); // Adjust delay based on page load speed
-              } else {
-                chrome.tabs.sendMessage(tabs[0].id, { action: "done" });
-                  console.log("🏁 No more 'Next response' buttons. Stopping the loop.");
-              }
-          });
-      });
+            // Wait for the page to load before sending "capture" again
+            setTimeout(() => {
+              console.log("📸 Sending 'capture' message again...");
+              chrome.tabs.sendMessage(tabs[0].id, { action: "capture" });
+            }, 100); // Adjust delay based on page load speed
+          } else {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "done" });
+            console.log(
+              "🏁 No more 'Next response' buttons. Stopping the loop."
+            );
+          }
+        });
+    });
   }
 });
 
@@ -161,11 +173,11 @@ function simulateClickOnNextResponse() {
   const nextLink = document.querySelector('a[aria-label="Next response"]');
 
   if (nextLink) {
-      console.log("🖱 Simulating click on:", nextLink.href);
-      nextLink.click(); // Simulate a user click event
-      return true; // Indicates that the button exists
+    console.log("🖱 Simulating click on:", nextLink.href);
+    nextLink.click(); // Simulate a user click event
+    return true; // Indicates that the button exists
   } else {
-      console.warn("❌ No 'Next response' link found! Ending loop.");
-      return false; // Indicates that the button does NOT exist
+    console.warn("❌ No 'Next response' link found! Ending loop.");
+    return false; // Indicates that the button does NOT exist
   }
 }

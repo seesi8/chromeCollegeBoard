@@ -1,6 +1,31 @@
 console.log("✅ Screen Capture Extension Script has loaded");
 let capturedImages = []; // Stores all captured images
 
+// Function to extract the current progress
+function getCurrentProgress() {
+  let progressElement = document.querySelector(
+    '.RI_header__title'
+  );
+
+
+  if (progressElement) {
+    let progressText = progressElement.textContent.split(" ")[0]; // Example: "13/16"
+    chrome.runtime.sendMessage({
+      action: "update_progress",
+      progress: progressText,
+    });
+  }
+}
+
+// Run the function when the page loads
+getCurrentProgress();
+
+// Listen for page updates (optional, to detect dynamic changes)
+new MutationObserver(getCurrentProgress).observe(document.body, {
+  childList: true,
+  subtree: true,
+});
+
 // Listen to messages sent by the background script
 chrome.runtime.onMessage.addListener(ScreenCaptureExtCB);
 function ScreenCaptureExtCB(msg) {
@@ -10,6 +35,9 @@ function ScreenCaptureExtCB(msg) {
     console.log("🖼 Merging images...");
     mergeImagesVertically(capturedImages).then((finalImage) => {
       downloadImage(finalImage);
+
+      chrome.runtime.sendMessage({ action: "capture_done" });
+
       console.log("✅ Final merged screenshot downloaded!");
     });
     return;
@@ -29,7 +57,12 @@ function ScreenCaptureExtCB(msg) {
     console.log(headerChildren);
     if (headerChildren) {
       headerChildren.forEach((item, i) => {
-        if (!(item.classList.contains("RI_header__title__nolin") || item.classList.contains("RI_header__performance_box"))) {
+        if (
+          !(
+            item.classList.contains("RI_header__title__nolin") ||
+            item.classList.contains("RI_header__performance_box")
+          )
+        ) {
           item.remove();
         }
       });
@@ -44,7 +77,8 @@ function ScreenCaptureExtCB(msg) {
         html2canvas(targetElement, { useCORS: true }).then((canvas) => {
           const imageUrl = canvas.toDataURL("image/png");
           capturedImages.push(imageUrl);
-          downloadImage(imageUrl);
+
+
 
           console.log("✅ Screenshot captured!");
 
