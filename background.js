@@ -15,8 +15,8 @@ function attachDebugger(tabId) {
         console.log(auth);
 
         if (
-          auth["url"] ==
-          "https://apc-api-production.collegeboard.org/fym/assessments/api/chameleon/student_assignments/1/?status=completed&subject=1"
+          auth["url"].includes(
+          "https://apc-api-production.collegeboard.org/fym/assessments)
         ) {
           fetchAPI(auth, tabId);
         }
